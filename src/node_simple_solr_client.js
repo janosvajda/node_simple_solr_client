@@ -1,3 +1,7 @@
+/**
+ * Simple SOLR client example. It is a native client it does not use any external SOLR library.
+ * @author Janos Vajda
+ */
 var http = require('http'),
 https = require('https'),
 JSONStream = require('JSONStream'),
@@ -6,12 +10,21 @@ querystring = require('querystring'),
 JSONbigInteger = require('json-bigint');
 
 
-
+/**
+ * Select HTTP/HTTPS protocols
+ * @param {type} secure
+ * @returns {https|http}
+ */
 function selectProtocol(secure){
    return secure ? https : http;
 };
 
-
+/**
+ * Send JSON string to SOLR server
+ * @param {type} params
+ * @param {type} callback
+ * @returns {sendJSON.request}
+ */
 function sendJSON(params,callback){
    var headers = {
       'content-type' : 'application/json; charset=utf-8',
@@ -30,16 +43,11 @@ function sendJSON(params,callback){
       headers : headers,
       path : params.fullPath
    };
-
    if(params.agent !== undefined){
       options.agent = params.agent;
    }
-
    var request = selectProtocol(params.secure).request(options);
    var bigint = false;
-
-
-//console.log('request',request);
    request.on('response', handleJSONResponse(request, bigint, callback));
 
    request.on('error',function onError(err){
@@ -52,22 +60,16 @@ function sendJSON(params,callback){
    return request;
 };
 
-
-
-
 function handleJSONResponse(request, bigint, callback){
    return function onJSONResponse(response){
       var text = '';
       var err = null;
       var data = null;
 
-      // This properly handles multi-byte characters
       response.setEncoding('utf-8');
-
       response.on('data',function(chunk){
          text += chunk;
       });
-
       response.on('end',function(){
          if(response.statusCode < 200 || response.statusCode > 299){
             err = new SolrError(request,response,text);
@@ -88,10 +90,6 @@ function handleJSONResponse(request, bigint, callback){
 
 function SolrClient(host, port, core, path, agent, secure, bigint){
 
-this.UPDATE_JSON_HANDLER = 'update/json';
-this.UPDATE_HANDLER = 'update';
-this.SELECT_HANDLER = 'select';
-
 this.options={ 
   'host': 'localhost',
   'port': '8001',
@@ -102,7 +100,6 @@ this.options={
   'bigint': false };
 
 }
-
 
 SolrClient.prototype.add = function(docs,options,callback){
    if(typeof(options) === 'function'){
@@ -138,7 +135,7 @@ var bigint = false;
 
 
 var json = JSONbigInteger.stringify(data);
-var fullPath = [this.options.path,this.options.core, this.UPDATE_JSON_HANDLER + '?' + querystring.stringify(options) +'&wt=json&commit=true']
+var SOLR_PATH = [this.options.path,this.options.core, 'update/json?' + querystring.stringify(options) +'&wt=json&commit=true']
                               .filter(function(element){
                                  return element;
                               })
@@ -148,7 +145,7 @@ var fullPath = [this.options.path,this.options.core, this.UPDATE_JSON_HANDLER + 
    var params = {
       host : this.options.host,
       port : this.options.port,
-      fullPath : fullPath,
+      fullPath : SOLR_PATH,
       json : json,
       secure : this.options.secure,
       bigint : this.options.bigint,
@@ -156,10 +153,8 @@ var fullPath = [this.options.path,this.options.core, this.UPDATE_JSON_HANDLER + 
       agent : this.options.agent
    };
 
-
    return sendJSON(params,callback);
 }
-
 
 
 SolrClient.prototype.commit = function(options,callback){
@@ -174,10 +169,7 @@ SolrClient.prototype.commit = function(options,callback){
 }
 
 
-
 SolrClient.prototype.search = function(query,callback){
-
-
 
 var options2=
 { 'host': 'localhost',
@@ -188,27 +180,24 @@ var options2=
 
    var request = selectProtocol(false).get(options2);
 
-
    request.on('response', handleJSONResponse(request, false, callback));
-
 
    request.on('error',function onError(err){
       if (callback) callback(err,null);
    });
-
    request.write('json');
    request.end();
-
 
 }
 
 
 
-
+/**
+ * Demo. How to use.
+ * @type SolrClient
+ */
 var client = new SolrClient('localhost','8001');
-
 var options={};
-
 
 client.add({ id : 123456789, title_t : 'Hello' },options, function(err,obj){
    if(err){
